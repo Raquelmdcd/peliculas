@@ -1,4 +1,4 @@
-nstall.packages("jsonlite")
+install.packages("jsonlite")
 install.packages("dplyr")
 library(jsonlite)
 library("dplyr")
@@ -9,7 +9,8 @@ peliculasCredits <- read_csv(file="C:\\Users\\Marta\\Documents\\tmdb_5000_credit
 sapply(peliculas, function(x)(sum(is.na(x)))) # NA counts
 sapply(peliculasCredits, function(x)(sum(is.na(x)))) # NA counts
 
-#EliminaciÛn del registro 
+# parte 1
+#Eliminaci√≥n del registro 
 posicion <-which(is.na(peliculas$release_date))
 registro <-peliculas[posicion,]
 peliculasCreditsRegistro <- which(peliculasCredits$movie_id ==registro$id)
@@ -21,6 +22,17 @@ summary(peliculas)
 posicionRunTime <- which(is.na(peliculas$runtime))
 peliculas[posicionRunTime[1],14] <- 106.9
 peliculas[posicionRunTime[2],14] <- 106.9
+
+peliculasFiltro <- peliculas[, c(1,4,9,12,13,14,19,20)]
+
+peliculasFiltro <-mutate(peliculasFiltro, beneficios = peliculasFiltro$revenue - peliculasFiltro$budget)
+
+#conBeneficios <-filter(peliculasFiltro, beneficios>0)
+#sinBeneficios <-filter(peliculasFiltro, beneficios<=0)
+
+plot(peliculasFiltro$vote_count)
+
+#Parte 2. generaci√≥n datasets para el estudio de los datos
 
 keywords <- peliculas %>%    
   filter(nchar(keywords)>2) %>%    
@@ -83,17 +95,10 @@ equipo<- peliculasCredits %>%
   unnest(js) %>%                    
   select(id, title, job, crew=name)   
 
-peliculasFiltro <- peliculas[, c(1,4,9,12,13,14,19,20)]
-
-peliculasFiltro <-mutate(peliculasFiltro, beneficios = peliculasFiltro$revenue - peliculasFiltro$budget)
-
-#conBeneficios <-filter(peliculasFiltro, beneficios>0)
-#sinBeneficios <-filter(peliculasFiltro, beneficios<=0)
-
 
 
 directoresPelicula <- equipo %>%         
-  filter(job=="Director") %>%               # get the directors
+  filter(job=="Director") %>%               
   mutate(director=crew) %>%                 
   left_join(                                
     peliculasFiltro,                         
@@ -108,11 +113,11 @@ directores <- directoresPelicula %>%
     weighted_mean_votos = 
       weighted.mean(vote_average, vote_count),
     weighted_mean_beneficios = weighted.mean(beneficios),
-    weighted_mean_popularidad = weighted.mean(popularity)) %>%  # and the weighted average votes
-  filter(n>1) %>%                                   # and filter out directors of 1 title
+    weighted_mean_popularidad = weighted.mean(popularity)) %>%  
+  filter(n>1) %>%                                  
   arrange(desc(weighted_mean_popularidad,weighted_mean_votos, weighted_mean_beneficios))                      
 
-# actores m·s populares
+# actores m√°s populares
 actoresPelicula <- reparto %>%         
   mutate(actor=cast) %>%                 
   left_join(                                
@@ -133,7 +138,7 @@ actores <- actoresPelicula %>%
   arrange(desc(weighted_mean_popularidad,weighted_mean_votos, weighted_mean_beneficios))                      
 
 
-# generos m·s populares
+# generos m√°s populares
 generosPelicula <- generos %>%         
   mutate(genero=genre) %>%                 
   left_join(                                
@@ -194,6 +199,154 @@ write.table(productorasPopulares, file = "C:\\Users\\Marta\\Documents\\productor
 
 
 
+# Comprobaci√≥n normalidad
+install.packages("nortest")
+library(nortest)
+require(nortest)
+
+plot(density(directores$weighted_mean_votos))
+# test Anderson-Darling
+ad.test(directores$weighted_mean_votos)$p.value
+# test Cramer-von Mises
+cvm.test(directores$weighted_mean_votos)$p.value
+# test Shapiro-Wilk
+shapiro.test(directores$weighted_mean_votos)$p.value
+#test de Lilliefors
+lillie.test(directores$weighted_mean_votos)$p.value
+# test de Pearson chi-square
+pearson.test(directores$weighted_mean_votos)$p.value
+# test de Shapiro-Francia
+sf.test(directores$weighted_mean_votos)$p.value
+# Todas tienen valores muy peque√±os de p, por lo que rechazan la H0. No siguen distribuci√≥n normal
+plot(density(directores$weighted_mean_beneficios))
+# test Anderson-Darling
+ad.test(directores$weighted_mean_beneficios)$p.value
+# Todas tienen valores muy peque√±os de p, por lo que rechazan la H0. No siguen distribuci√≥n normal
+plot(density(directores$weighted_mean_popularidad))
+# test Anderson-Darling
+ad.test(directores$weighted_mean_popularidad)$p.value
+
+plot(density(actores$weighted_mean_votos))
+# test Anderson-Darling
+pearson.test(actores$weighted_mean_votos)$p.value
+plot(density(actores$weighted_mean_beneficios))
+# test Anderson-Darling
+ad.test(actores$weighted_mean_beneficios)$p.value
+plot(density(actores$weighted_mean_popularidad))
+# test Anderson-Darling
+ad.test(directores$weighted_mean_popularidad)$p.value
+
+plot(density(generosPopulares$weighted_mean_votos))
+# test Anderson-Darling
+cvm.test(generosPopulares$weighted_mean_votos)$p.value
+plot(density(generosPopulares$weighted_mean_beneficios))
+# test Anderson-Darling
+cvm.test(generosPopulares$weighted_mean_beneficios)$p.value
+ad.test(generosPopulares$weighted_mean_beneficios)$p.value
+pearson.test(generosPopulares$weighted_mean_beneficios)$p.value
+
+plot(density(generosPopulares$weighted_mean_popularidad))
+# test Anderson-Darling
+ad.test(generosPopulares$weighted_mean_popularidad)$p.value
+pearson.test(generosPopulares$weighted_mean_popularidad)$p.value
+cvm.test(generosPopulares$weighted_mean_popularidad)$p.value
+
+
+plot(density(productorasPopulares$weighted_mean_votos))
+# test Anderson-Darling
+ad.test(productorasPopulares$weighted_mean_votos)$p.value
+cvm.test(productorasPopulares$weighted_mean_votos)$p.value
+plot(density(productorasPopulares$weighted_mean_beneficios))
+# test Anderson-Darling
+ad.test(productorasPopulares$weighted_mean_beneficios)$p.value
+plot(density(productorasPopulares$weighted_mean_popularidad))
+# test Anderson-Darling
+ad.test(productorasPopulares$weighted_mean_popularidad)$p.value
+
+
+
+# test Anderson-Darling
+ad.test(peliculasFiltro$vote_count)$p.value
+# test Cramer-von Mises
+cvm.test(peliculasFiltro$vote_count)$p.value
+# test Shapiro-Wilk
+shapiro.test(peliculasFiltro$vote_count)$p.value
+#test de Lilliefors
+lillie.test(peliculasFiltro$vote_count)$p.value
+# test de Pearson chi-square
+pearson.test(peliculasFiltro$vote_count)$p.value
+# test de Shapiro-Francia
+sf.test(peliculasFiltro$vote_count)$p.value
+# Todas tienen valores muy peque√±os de p, por lo que rechazan la H0. No siguen distribuci√≥n normal
+
+plot(density(peliculasFiltro$beneficios))
+# test Anderson-Darling
+ad.test(peliculasFiltro$beneficios)$p.value
+# test Cramer-von Mises
+cvm.test(peliculasFiltro$beneficios)$p.value
+# test Shapiro-Wilk
+shapiro.test(peliculasFiltro$beneficios)$p.value
+#test de Lilliefors
+lillie.test(peliculasFiltro$beneficios)$p.value
+# test de Pearson chi-square
+pearson.test(peliculasFiltro$beneficios)$p.value
+# test de Shapiro-Francia
+sf.test(peliculasFiltro$beneficios)$p.value
+
+
+# test Anderson-Darling
+ad.test(peliculasFiltro$popularity)$p.value
+# test Cramer-von Mises
+cvm.test(peliculasFiltro$popularity)$p.value
+# test Shapiro-Wilk
+shapiro.test(peliculasFiltro$popularity)$p.value
+#test de Lilliefors
+lillie.test(peliculasFiltro$popularity)$p.value
+# test de Pearson chi-square
+pearson.test(peliculasFiltro$popularity)$p.value
+# test de Shapiro-Francia
+sf.test(peliculasFiltro$popularity)$p.value
+
+
+
+#buscamos extreme scores en cuanto a popularidad,por la gr√°fica vemos 6
+plot(peliculasFiltro$popularity)
+# creamos un data frame auxiliar sin extremes scores de la popularidad
+peliculasFiltroOrder <- arrange(peliculasFiltro, desc(peliculasFiltro$popularity))
+peliculasFiltroOrderDel <- peliculasFiltroOrder[-c(1, 2, 3, 4, 5, 6), ]
+# comprobamos si quitando estos valores, sigue una normal y vemos que tampoco
+ad.test(peliculasFiltroOrderDel$popularity)$p.value
+
+plot(peliculasFiltroOrderDel$popularity)
+
+
+# hacemos los test de homogeneidad de varianzas
+# vamos a separar por grupos con o sin beneficios
+# a√±adimos una nueva columna que nos indique si hay o no beneficios en la pel√≠cula
+peliculasFiltro <- mutate(peliculasFiltro, swBeneficios = peliculasFiltro$beneficios > 0)
+
+#homogeneidad varianzas
+install.packages("car")
+require(car)
+library("dplyr")
+# hacemos los test de homogeneidad de varianzas
+# vamos a separar por grupos con o sin beneficios
+# a√±adimos una nueva columna que nos indique si hay o no beneficios en la pel√≠cula
+peliculasFiltro <- mutate(peliculasFiltro, swBeneficios = peliculasFiltro$beneficios > 0)
+# en este caso, el m√©todo que nos sirve es el fligner test, puesto que los datos no
+# siguen una distribuci√≥n normal
+fligner.test(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
+# p tiene un valor muy peque√±o, as√≠ que tampoco hay homogeneidad en las varianzas
+# probamos otros m√©todos y observamos que se ve el mismo resultado
+bartlett.test(peliculasFiltro$vote_count, peliculasFiltro$swBeneficios, peliculasFiltro)
+bartlett.test(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
+leveneTest(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
+
+
+
+
+
+#Parte 3
 install.packages("ggplot2")
 library(ggplot2)
 #histogramas y QQ plot
@@ -260,7 +413,7 @@ slope <- diff(y) / diff(x)
 int   <- y[1] - slope * x[1]
 ggplot(generosPopulares) + stat_qq(aes(sample=weighted_mean_votos))  + 
   geom_abline(intercept=int, slope=slope, color="blue") + 
-  labs(title="QQ plot de voto medio ponderado por gÈnero")
+  labs(title="QQ plot de voto medio ponderado por g√©nero")
 
 hist(generosPopulares$weighted_mean_beneficios, xlab="Peso", ylab="Frecuencia", las=1, main="")
 y <- quantile(generosPopulares$weighted_mean_beneficios, c(0.25, 0.75)) 
@@ -269,7 +422,7 @@ slope <- diff(y) / diff(x)
 int   <- y[1] - slope * x[1]
 ggplot(generosPopulares) + stat_qq(aes(sample=weighted_mean_beneficios))  + 
   geom_abline(intercept=int, slope=slope, color="blue") + 
-  labs(title="QQ plot de beneficio medio ponderado por gÈnero")
+  labs(title="QQ plot de beneficio medio ponderado por g√©nero")
 
 hist(generosPopulares$weighted_mean_popularidad, xlab="Peso", ylab="Frecuencia", las=1, main="")
 y <- quantile(generosPopulares$weighted_mean_popularidad, c(0.25, 0.75)) 
@@ -278,7 +431,7 @@ slope <- diff(y) / diff(x)
 int   <- y[1] - slope * x[1]
 ggplot(generosPopulares) + stat_qq(aes(sample=weighted_mean_popularidad))  + 
   geom_abline(intercept=int, slope=slope, color="blue") + 
-  labs(title="QQ plot de popularidad media ponderado por gÈnero")
+  labs(title="QQ plot de popularidad media ponderado por g√©nero")
 
 hist(productorasPopulares$weighted_mean_votos, xlab="Peso", ylab="Frecuencia", las=1, main="")
 y <- quantile(productorasPopulares$weighted_mean_votos, c(0.25, 0.75)) 
@@ -318,165 +471,6 @@ sapply(equipo, function(x)(sum(is.na(x)))) # NA counts
 
 
 
-require(nortest)
-install.packages("nortest")
-library(nortest)
-plot(density(sinBeneficios$vote_count))
-# test Anderson-Darling
-ad.test(sinBeneficios$vote_count)$p.value
-# test Cramer-von Mises
-ad.test(conBeneficios$vote_count)$p.value
-# test Shapiro-Wilk
-shapiro.test(sinBeneficios$vote_count)$p.value
-#test de Lilliefors
-lillie.test(sinBeneficios$vote_count)$p.value
-# test de Pearson chi-square
-pearson.test(sinBeneficios$vote_count)$p.value
-# test de Shapiro-Francia
-sf.test(sinBeneficios$vote_count)$p.value
-
-# Todas tienen valores muy pequeÒos de p, por lo que rechazan la H0. No siguen distribuciÛn normal
-
-install.packages("nortest")
-require(nortest)
-
-plot(density(directores$weighted_mean_votos))
-# test Anderson-Darling
-ad.test(directores$weighted_mean_votos)$p.value
-# test Cramer-von Mises
-cvm.test(directores$weighted_mean_votos)$p.value
-# test Shapiro-Wilk
-shapiro.test(directores$weighted_mean_votos)$p.value
-#test de Lilliefors
-lillie.test(directores$weighted_mean_votos)$p.value
-# test de Pearson chi-square
-pearson.test(directores$weighted_mean_votos)$p.value
-# test de Shapiro-Francia
-sf.test(directores$weighted_mean_votos)$p.value
-# Todas tienen valores muy pequeÒos de p, por lo que rechazan la H0. No siguen distribuciÛn normal
-plot(density(directores$weighted_mean_beneficios))
-# test Anderson-Darling
-ad.test(directores$weighted_mean_beneficios)$p.value
-# Todas tienen valores muy pequeÒos de p, por lo que rechazan la H0. No siguen distribuciÛn normal
-plot(density(directores$weighted_mean_popularidad))
-# test Anderson-Darling
-ad.test(directores$weighted_mean_popularidad)$p.value
-
-plot(density(actores$weighted_mean_votos))
-# test Anderson-Darling
-pearson.test(actores$weighted_mean_votos)$p.value
-plot(density(actores$weighted_mean_beneficios))
-# test Anderson-Darling
-ad.test(actores$weighted_mean_beneficios)$p.value
-plot(density(actores$weighted_mean_popularidad))
-# test Anderson-Darling
-ad.test(directores$weighted_mean_popularidad)$p.value
-
-plot(density(generosPopulares$weighted_mean_votos))
-# test Anderson-Darling
-cvm.test(generosPopulares$weighted_mean_votos)$p.value
-plot(density(generosPopulares$weighted_mean_beneficios))
-# test Anderson-Darling
-cvm.test(generosPopulares$weighted_mean_beneficios)$p.value
-ad.test(generosPopulares$weighted_mean_beneficios)$p.value
-pearson.test(generosPopulares$weighted_mean_beneficios)$p.value
-
-plot(density(generosPopulares$weighted_mean_popularidad))
-# test Anderson-Darling
-ad.test(generosPopulares$weighted_mean_popularidad)$p.value
-pearson.test(generosPopulares$weighted_mean_popularidad)$p.value
-cvm.test(generosPopulares$weighted_mean_popularidad)$p.value
-
-
-plot(density(productorasPopulares$weighted_mean_votos))
-# test Anderson-Darling
-ad.test(productorasPopulares$weighted_mean_votos)$p.value
-cvm.test(productorasPopulares$weighted_mean_votos)$p.value
-plot(density(productorasPopulares$weighted_mean_beneficios))
-# test Anderson-Darling
-ad.test(productorasPopulares$weighted_mean_beneficios)$p.value
-plot(density(productorasPopulares$weighted_mean_popularidad))
-# test Anderson-Darling
-ad.test(productorasPopulares$weighted_mean_popularidad)$p.value
-
-
-plot(density(peliculasFiltro$vote_count))
-# test Anderson-Darling
-ad.test(peliculasFiltro$vote_count)$p.value
-# test Cramer-von Mises
-cvm.test(peliculasFiltro$vote_count)$p.value
-# test Shapiro-Wilk
-shapiro.test(peliculasFiltro$vote_count)$p.value
-#test de Lilliefors
-lillie.test(peliculasFiltro$vote_count)$p.value
-# test de Pearson chi-square
-pearson.test(peliculasFiltro$vote_count)$p.value
-# test de Shapiro-Francia
-sf.test(peliculasFiltro$vote_count)$p.value
-# Todas tienen valores muy pequeÒos de p, por lo que rechazan la H0. No siguen distribuciÛn normal
-
-plot(density(peliculasFiltro$beneficios))
-# test Anderson-Darling
-ad.test(peliculasFiltro$beneficios)$p.value
-# test Cramer-von Mises
-cvm.test(peliculasFiltro$beneficios)$p.value
-# test Shapiro-Wilk
-shapiro.test(peliculasFiltro$beneficios)$p.value
-#test de Lilliefors
-lillie.test(peliculasFiltro$beneficios)$p.value
-# test de Pearson chi-square
-pearson.test(peliculasFiltro$beneficios)$p.value
-# test de Shapiro-Francia
-sf.test(peliculasFiltro$beneficios)$p.value
-
-
-# test Anderson-Darling
-ad.test(peliculasFiltro$popularity)$p.value
-# test Cramer-von Mises
-cvm.test(peliculasFiltro$popularity)$p.value
-# test Shapiro-Wilk
-shapiro.test(peliculasFiltro$popularity)$p.value
-#test de Lilliefors
-lillie.test(peliculasFiltro$popularity)$p.value
-# test de Pearson chi-square
-pearson.test(peliculasFiltro$popularity)$p.value
-# test de Shapiro-Francia
-sf.test(peliculasFiltro$popularity)$p.value
-
-
-
-#buscamos extreme scores en cuanto a popularidad,por la gr·fica vemos 6
-plot(peliculasFiltro$popularity)
-# creamos un data frame auxiliar sin extremes scores de la popularidad
-peliculasFiltroOrder <- arrange(peliculasFiltro, desc(peliculasFiltro$popularity))
-peliculasFiltroOrderDel <- peliculasFiltroOrder[-c(1, 2, 3, 4, 5, 6), ]
-# comprobamos si quitando estos valores, sigue una normal y vemos que tampoco
-ad.test(peliculasFiltroOrderDel$popularity)$p.value
-
-plot(peliculasFiltroOrderDel$popularity)
-
-
-# hacemos los test de homogeneidad de varianzas
-# vamos a separar por grupos con o sin beneficios
-# aÒadimos una nueva columna que nos indique si hay o no beneficios en la pelÌcula
-peliculasFiltro <- mutate(peliculasFiltro, swBeneficios = peliculasFiltro$beneficios > 0)
-
-#homogeneidad varianzas
-install.packages("car")
-require(car)
-library("dplyr")
-# hacemos los test de homogeneidad de varianzas
-# vamos a separar por grupos con o sin beneficios
-# aÒadimos una nueva columna que nos indique si hay o no beneficios en la pelÌcula
-peliculasFiltro <- mutate(peliculasFiltro, swBeneficios = peliculasFiltro$beneficios > 0)
-# en este caso, el mÈtodo que nos sirve es el fligner test, puesto que los datos no
-# siguen una distribuciÛn normal
-fligner.test(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
-# p tiene un valor muy pequeÒo, asÌ que tampoco hay homogeneidad en las varianzas
-# probamos otros mÈtodos y observamos que se ve el mismo resultado
-bartlett.test(peliculasFiltro$vote_count, peliculasFiltro$swBeneficios, peliculasFiltro)
-bartlett.test(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
-leveneTest(peliculasFiltro$vote_count~peliculasFiltro$swBeneficios, peliculasFiltro)
 
 
 ## Correlacion actores
@@ -507,7 +501,7 @@ plot(lm(weighted_mean_beneficios ~ weighted_mean_popularidad, data =actores))
 summary(regresion)
 #Bondad de ajuste, esta es signidicativa H0 no hay correlacion, hay una correlacion diferende de 0
 anova(regresion)
-# si queremos la representaci√≥n de los datos
+# si queremos la representaci√É¬≥n de los datos
 plot(actores$weighted_mean_beneficios, actores$weighted_mean_popularidad)
 abline(regresion)
 datos <- data.frame(weighted_mean_popularidad =(c(80000,70000)))
@@ -538,7 +532,7 @@ plot(lm(weighted_mean_beneficios ~ weighted_mean_popularidad, data =directores))
 summary(regresion)
 #Bondad de ajuste, esta es signidicativa H0 no hay correlacion, hay una correlacion diferende de 0
 anova(regresion)
-# si queremos la representaci√≥n de los datos
+# si queremos la representaci√É¬≥n de los datos
 plot(actores$weighted_mean_beneficios, actores$weighted_mean_popularidad)
 datos <- data.frame(weighted_mean_popularidad =(c(80000,70000)))
 predict(regresion,  datos)
@@ -564,7 +558,7 @@ plot(lm(weighted_mean_beneficios ~ weighted_mean_popularidad, data =generosPopul
 summary(regresion)
 #Bondad de ajuste, esta es signidicativa H0 no hay correlacion, hay una correlacion diferende de 0
 anova(regresion)
-# si queremos la representaci√≥n de los datos
+# si queremos la representaci√É¬≥n de los datos
 plot(generosPopulares$weighted_mean_beneficios, generosPopulares$weighted_mean_popularidad)
 datos <- data.frame(weighted_mean_popularidad =(c(80000,70000)))
 predict(regresion,  datos)
@@ -596,8 +590,10 @@ plot(lm(weighted_mean_beneficios ~ weighted_mean_popularidad, data =generosPopul
 summary(regresion)
 #Bondad de ajuste, esta es signidicativa H0 no hay correlacion, hay una correlacion diferende de 0
 anova(regresion)
-# si queremos la representaci√≥n de los datos
+# si queremos la representaci√É¬≥n de los datos
 plot(generosPopulares$weighted_mean_beneficios, generosPopulares$weighted_mean_popularidad)
 datos <- data.frame(weighted_mean_popularidad =(c(100000,90000)))
 predict(regresion,  datos)
 predict(regresion, data.frame(datos), level = 0.95, interval = "confidence")
+
+
